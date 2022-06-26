@@ -165,6 +165,6 @@ head(tidydataset,20)
 
 
 #------- Saving file -------#
-write.csv(tidydataset,file = "tidy_data.csv")
+write.table(tidydataset,file = "tidy_data.txt", row.name = FALSE)
 
 makeCodebook(tidydataset)
