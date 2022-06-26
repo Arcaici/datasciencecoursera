@@ -166,3 +166,5 @@ head(tidydataset,20)
 
 #------- Saving file -------#
 write.csv(tidydataset,file = "tidy_data.csv")
+
+makeCodebook(tidydataset)
