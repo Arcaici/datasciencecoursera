@@ -1,0 +1,117 @@
+---
+title: "Simulation Exercise"
+author: "Marco Venturi"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Construction of simulation
+
+Simulation was perform by sampling mean of a thousand of exponantial distribution
+
+```{r}
+
+library(ggplot2)
+
+n <- 40
+lambda <- 0.2
+
+pvals <- seq(0.1, 0.9, by = 0.05)
+
+exp_r_sim <- NULL
+
+for (i in 1 : 1000) exp_r_sim = c(exp_r_sim, mean(rexp(n,lambda)))
+
+```
+## Mean Comparision Sample Mean vs Theoretical Mean of the Distribution
+
+```{r}
+
+# Sample Mean
+sampleMean <- mean(exp_r_sim) # Mean of sample means
+print (paste("Sample Mean is : ", sampleMean))
+
+```
+
+```{r}
+
+# Theoretical Mean
+# the expected mean of the exponential distribution of rate = 1/lambda
+theoretical_mean <- (1/lambda)
+print (paste("Theoretical Mean is : ", theoretical_mean))
+
+```
+
+## Calculating the theoretical and sample variance
+
+```{r}
+
+# Histogram shows differences
+hist(exp_r_sim, col="#00ff00", xlab = "Mean Average", main="Distribution of Exponential Average")
+abline(v = theoretical_mean, col="#FFD8B1")
+abline(v = sampleMean, col="#1829ff")
+
+
+```
+
+```{r}
+
+# sample deviation & variance
+sample_dev <- sd(exp_r_sim)
+print (paste("The sample standard deviation is : ", sample_dev))
+
+
+
+```
+
+```{r}
+
+sample_variance <- sample_dev^2
+print (paste("The sample variance is : ",sample_variance))
+
+```
+
+```{r}
+
+# theoretical deviation & variance
+theoretical_dev <- (1/lambda)/sqrt(n)
+print (paste("The theoeriatical standard deviation is : ",theoretical_dev))
+
+```
+
+```{r}
+
+theoretical_variance <- ((1/lambda)*(1/sqrt(n)))^2
+print (paste("The theoretical variance is : ",theoretical_variance))
+2
+
+
+```
+
+##  Show that the distribution is approximately normal Histogram with Density and sample means:
+
+
+```{r}
+d <- data.frame(exp_r_sim)
+t <- data.frame(theoretical_mean)
+g <- ggplot(d, aes(x = exp_r_sim)) +
+geom_histogram(binwidth = .2, color="#364e2b", fill="#ff1199" , aes(y=..density..))+
+stat_function(fun=dnorm, args=list(mean=theoretical_mean, sd=sd(exp_r_sim)),
+color="#2a4679", size =1) +
+stat_density(geom = "line", color = "#09eb09", size =1) +
+labs(x="Mean", y= "Density",
+title="Normal Distribution Comparision")
+
+g
+
+```
+
+```{r}
+qqnorm(exp_r_sim)
+qqline(exp_r_sim, col = "#0affa0")
+
+```
