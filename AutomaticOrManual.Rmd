@@ -1,0 +1,191 @@
+---
+title: "Manual or Automatic"
+author: "Marco Venturi"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(car)
+```
+
+## Abstract
+
+In the Motor Trend magazine, we looked for a answer about which trasmission is better for ratio mile per gallon (mpg). This report go throught the mtcar dataset supplied by R, with some Exploratory data analisys and differents models that helped to discover wich trasmission has a better impact to mpg.    
+
+### Getting and Cleaning Data    
+
+```{r  ,echo = FALSE}
+df <- mtcars
+summary(df)
+```
+The summary show that all features are numeric, let's investigate further.    
+
+```{r}
+str(df)
+#am unique values
+table(df$am)
+#cyl unique values
+table(df$cyl)
+#vs unique values
+table(df$vs)
+#gear unique values
+table(df$gear)
+#carb unique values
+table(df$carb)
+```
+There are differrentfactor variable, they are going to be factorize.
+
+```{r , echo = FALSE}
+df$am  <- factor(df$am)
+df$cyl <- factor(df$cyl)
+df$vs  <- factor(df$vs)
+df$gear<- factor(df$gear)
+df$carb<- factor(df$carb)
+str(df)
+```
+```{r}
+#sum of N/A values
+sum(is.na(df))
+head(df,5)
+```
+Now df is clean and there are any missing values.   
+  
+### Exploratory  data Analisys 
+ 
+```{r , echo=FALSE}
+summary(lm(mpg ~ am - 1, data = df))$coefficients
+
+```
+Comparing *mpg* to *automatic* and *manual* , it seems that automatic cars consume less than 18 per mile, while manual it's around 24/25 mpg. Let's see how horse-power and weight influence those statistics.
+
+#### Horse power and weight investigation
+ 
+ 
+##### Weight: 
+```{r , echo=FALSE}
+
+fit_wt <- lm(mpg ~ wt + am, data = df)
+
+g_wt <- ggplot(df, aes(y=mpg, x=wt, shape = am, color=am))
+g_wt <- g_wt + geom_point(size=2)
+g_wt <- g_wt + geom_smooth(method = "lm", se = TRUE)
+g_wt <- g_wt + labs( title = "mpg according to weight over trasmission", x = "weight(lb/1000)", y = "Miles(US/gallon)")
+g_wt <- g_wt + geom_abline(intercept = coef(fit_wt)[1], slope = coef(fit_wt)[2])
+g_wt
+
+```
+
+ 
+The graph show a relation between *weight* and *mpg* over *transmission*, less a car weight more mpg does the car, if it's applied transmission information too, it seems that lower weight cars that have manual transmission, they consume in general less respect to automatic cars, while this assumption is not true if we talk about medium size car, but any light cars data with automatic transmission  are given for prove the first assumption.
+ 
+let's check this assumption:
+```{r , echo=FALSE}
+summary(lm(mpg ~ wt*am -1, data = df))$coefficients
+
+```
+ 
+the automatic trasmission seems to consume more than manual adjusting with weight
+ 
+ 
+##### Horse_power:
+```{r , echo=FALSE}
+fit_hp <- lm(mpg ~ hp + am, data = df)
+
+g_hp <- ggplot(df, aes(y=mpg, x=hp, shape = am, color=am))
+g_hp <- g_hp + geom_point(size=2)
+g_hp <- g_hp + geom_smooth(method = "lm", se = TRUE)
+g_hp <- g_hp + labs( title = "mpg according to horse-power over trasmission", x = "Gross horse power", y = "Miles(US/gallon)")
+g_hp <- g_hp + geom_abline(intercept = coef(fit_hp)[1], slope = coef(fit_hp)[2])
+g_hp
+```
+ 
+The graph show a relation between *gross horse-power* and *mpg* over *transmission*, it seems that more horse power has the car less mpg are. Transmission to influence the mpg, and it show that automatic cars use less mpg when horse power grow then manual ones.
+ 
+let's check this assumption:
+
+```{r}
+summary(lm(mpg ~ hp*am -1, data = df))
+```
+
+#### Comparing cylinderrs, C-shape engine, gear and carb to mpg over trasmission
+
+before start let's check which features seems to influence the mpg prediction and them coefficients
+
+```{r , echo=FALSE}
+fit0 <- lm(mpg ~ .-1, data = df)
+summary(fit0)$coefficients
+```
+ 
+ 
+Cylinders seems to have more impact respect to other features.
+
+```{r , echo=FALSE}
+g_cyl <- ggplot(data = df, aes(y = log(mpg), x = cyl, fill = cyl))
+g_cyl <- g_cyl + geom_violin(coloir = "black", size = 2)
+g_cyl <- g_cyl + labs(title = "mpg compare to cylinders over transmission", y = " Miles(US/gallon) in log ", x = "#cylinder")
+g_cyl <- g_cyl + facet_grid(am ~ .)
+g_cyl
+```
+ 
+Checking variance of mpg compare to #cylinders over transmision it's seems that automatic transmision as flatter variance then manual  transmission does on 4 cyl while the opposite occur for 6 and 8 cyl.
+
+### Diagnostic
+ 
+```{r , echo=FALSE}
+summary(fit0)$coefficients
+```
+Looking the coefficients it's seems that all features are necessary, so we need to first the *residual plot* for look throught the data pattern and then check over *vif* for look variance on features.
+
+#### Residual plot
+
+Now that we know the main features that influence mpg overam lets look the residual plot
+
+```{r , echo=FALSE}
+g_resid <- ggplot(data = df, aes(y=resid(fit0), x=predict(fit0)))
+g_resid <- g_resid + geom_point()
+g_resid <- g_resid + geom_smooth(method = "lm", se = TRUE)
+g_resid
+```
+ 
+ 
+residual plot have a pattern that suggest a linear regresion should fit the pattern, but we still need to investigate over outliers for check if some data can be adjust for fit in a better way the model.
+ 
+ 
+```{r , echo=FALSE}
+fit <- lm(mpg ~ . , data = df)
+vif(fit)
+sqrt(vif(fit))
+```
+
+### Model selection
+
+In this section we are interest in find the best model for *mpg* and then  check which *am* is better. 
+
+Now i will check which feature is better to exclude by the use of *anova* function and the pre-knoledge obtain with *vif* test.
+
+```{r , echo=FALSE}
+m1 <- lm(mpg ~ am, data = df)
+m2 <- lm(mpg ~ am + vs + qsec, data = df)
+m3 <- lm(mpg ~ am + vs + qsec + hp + wt, data = df)
+m4 <- lm(mpg ~ am + vs + qsec + hp + wt + drat, data = df)
+m5 <- lm(mpg ~ am + vs + qsec + hp + wt + drat + disp , data = df)
+m6 <- lm(mpg ~ am + vs + qsec + hp + wt + drat + disp + gear, data = df)
+m7 <- lm(mpg ~ am + vs + qsec + hp + wt + drat + disp + carb, data = df)
+m8 <- lm(mpg ~ am + vs + qsec + hp + wt + drat + disp + cyl, data = df)
+
+anova(m1, m2, m3,m4, m5, m6, m7, m8, fit0)
+```
+the best suitable model with linear regression seems to be m5 the best.
+
+### Aswer and conclusion
+
+```{r}
+b_m <- lm(mpg ~ am + vs + qsec + hp + wt + drat + disp -1 , data = df)
+summary(b_m)$coefficients
+```
+#### Answer
+
+Automatic transmission seems to be the best transmission respect to mpg because consume around 12 mpg with a variance of 12, respect to manual transmission that consume 15 mpg with 12 of mpg variance.
