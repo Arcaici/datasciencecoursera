@@ -1,0 +1,92 @@
+---
+title: "Acticity Prediction"
+author: "Marco Venturi"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+### Abstract
+The dataset has the pourpose to predict which type of excercise a person is doing, the types of excercise is decide over the feature *classe*. The data were downloaded from a web source and cleaneed. The dataset is submitted by using a random forest model. 
+
+### Downloading Data
+
+```{r cars}
+URL_training      <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+destfile_training <- "pml-training.csv"
+
+URL_test      <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+destfile_test <- "pml-test.csv"
+
+if(!file.exists(destfile_training)){
+  download.file(URL_training, destfile_training)
+}
+
+
+if(!file.exists(destfile_test)){
+  download.file(URL_test, destfile_test)
+}
+```
+
+### Loading and Cleaning Data
+
+Cleaning data
+
+```{r pressure, echo=FALSE}
+pml_training <-  read.csv("pml-training.csv")
+pml_training <- pml_training[, c(8:11, 37:49, 60:68, 84:86, 102, 113:124, 140, 151:160)]
+
+pml_testing <-  read.csv("pml-test.csv")
+validating  <- pml_testing[, c(8:11, 37:49, 60:68, 84:86, 102, 113:124, 140, 151:160)]
+
+```
+
+
+### Slicing Data
+
+Slicing data in train, test and validation set
+
+```{r}
+library(caret)
+library(kernlab)
+
+inTrain <- createDataPartition(y = pml_training$classe, p = 0.75, list = FALSE)
+
+training <- pml_training[inTrain, ]
+testing <- pml_training[-inTrain, ]
+dim(training)
+```
+### Creating Model
+
+Crating Random Forest model predictor.
+
+```{r}
+control          <- trainControl(method = "cv",number = 4, allowParallel = TRUE)
+model            <- train(classe ~ ., data=training, method = "rf" , trControl = control)
+predict          <- predict(model, testing)
+confusionMatrix  <- confusionMatrix(factor(testing$classe), predict)
+
+confusionMatrix
+```
+
+Printing errooe rate.
+
+```{r}
+accuracy <- confusionMatrix$overall[1]
+
+error <- (1 - sum(predict == testing$classe) / length(predict))
+error
+```
+
+### Making Predictions
+
+Making prediction over validation set.
+
+```{r}
+result  <- predict(model, validating)
+result
+```
