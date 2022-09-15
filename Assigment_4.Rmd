@@ -9,7 +9,7 @@ output: slidy_presentation
 
 ### See the Regression Models Course Project  
 
-- URL: *https://github.com/manastiwari/Developing-Data-Products-Week-4-Course-Project*
+- URL: *https://github.com/Arcaici/DevelopingDataProduct_Assignments*
 - Find here all the data that have been use for this presentation and also for the first part of the data Science Project: "First, you will create a Shiny application and deploy it on Rstudio's servers.Second, you will use Slidify or Rstudio Presenter to prepare a reproducible pitch presentation about your application."
 
 ### Find all details here
