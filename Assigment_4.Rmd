@@ -1,8 +1,10 @@
 ---
 title: "Assignment_4"
 author: "Marco Venturi"
-date: '`r Sys.Date()`'
-output: slidy_presentation
+date: "`r Sys.Date()`"
+output:
+  beamer_presentation: default
+  slidy_presentation: default
 ---
 
 ## Coursera Reproducible Pitch
