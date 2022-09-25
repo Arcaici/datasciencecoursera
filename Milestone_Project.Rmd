@@ -1,0 +1,220 @@
+---
+title: "Mile Stone Report"
+author: "Marco Venturi"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Abstarct
+
+The milestone project has goal to retrieve, clean analize and visualize data for understand how we can predict the next word while a user is typing by a mobile keyboard.
+ At the end of this Report we will understand the summary statistics that influence the possible prediction and how words can be well represented over n-grams too.
+
+### Library Loading
+
+```{r, include=FALSE}
+library(tm)
+library(stringi)
+library(dplyr)
+library(pryr)
+library(RColorBrewer)
+library(ggplot2)
+library(RWeka)
+```
+
+## Data
+
+The data made available by Jhon Hopkins University's coursera project and can be retrive [here](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip).
+
+I will focus on using english language files only.
+
+```{r}
+blogs <- readLines("./final/en_US/en_US.blogs.txt", warn = FALSE, encoding = "UTF-8", skipNul = TRUE)
+news <- readLines("./final/en_US/en_US.news.txt", warn = FALSE, encoding = "UTF-8", skipNul = TRUE)
+twitter <- readLines("./final/en_US/en_US.twitter.txt", warn = FALSE, encoding = "UTF-8", skipNul = TRUE)
+```
+
+### Generation of Statistics Summary 
+
+Observing file size, lines and size type(small, medium, large).
+``` {r}
+ stats <- data.frame(
+        FileName = c("blogs", "news", "twitter"),
+        FileSize = sapply(list(blogs, news, twitter), function(x){format(object.size(x), "MB")}),
+        t(rbind(sapply(list(blogs, news, twitter), stri_stats_general),
+        Words = sapply(list(blogs, news, twitter), stri_stats_latex)[4,]))
+)
+
+stats
+ 
+```
+
+### Sampling Data
+
+The data results too large for a complete use, so i will subset the data  in three new dataset that will represent just the 1% of datasets.
+
+```{r}
+set.seed(1234)
+sampleSize <- 0.01
+
+blogsSub <- sample(blogs, length(blogs) * sampleSize)
+newsSub <- sample(news, length(news) * sampleSize)
+twitterSub <- sample(twitter, length(twitter) * sampleSize)
+
+sampleData <- c(blogsSub, newsSub, twitterSub)
+
+sampleStats <- data.frame(
+        FileName = c("blogsSub", "newsSub", "twitterSub", "sampleData"),
+        FileSize = sapply(list(blogsSub, newsSub, twitterSub, sampleData), function(x){format(object.size(x), "MB")}),
+        t(rbind(sapply(list(blogsSub, newsSub, twitterSub, sampleData), stri_stats_general),
+        Words = sapply(list(blogsSub, newsSub, twitterSub, sampleData), stri_stats_latex)[4,])
+        )
+)
+
+sampleStats
+```
+
+## Features Extraction
+
+Building corpus and check the size.
+
+```{r}
+corpus <- VCorpus(VectorSource(sampleData))
+format(object.size(corpus), "MB")
+```
+
+The VCorpus result be 137.3 MB, quite large even whit a sample size of 1% . This maybe  be an issue due to memory constraints when it comes to build the predictive model, but right now i will start from here for observe where this choice will lead me.
+
+Now is time to clean the corpus data using functions from tm package, whit operations like:
+
+ - Converting everything to lower case
+ 
+ - Remove punctuation marks, numbers, extra white space, and common words like preposition, etc...
+ 
+ - Filtering unwanted words
+ 
+In this stage there will be no manage of stop words, because is too early for understand the impact of them in this specific case respect to a stage project where i already have  results over a predictive model, so stop words will be discuss before finalizing the application.
+
+```{r}
+cleanCorpus <- corpus %>%
+       tm_map(content_transformer(tolower)) %>% # Convert all to lower case
+       tm_map(removePunctuation) %>% # Remove punctuation marks
+       tm_map(removeNumbers) %>% # Remove numbers
+       tm_map(stripWhitespace) %>% # Remove whitespace
+       tm_map(PlainTextDocument) # Convert all to plain text document
+```
+
+### Tokenize and Construct the N-Grams
+
+This step will observe unigram, bigram and trigram matrix, for understand the frequency of different words situation.
+
+```{r}
+uniTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
+biTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+triTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+
+uniMatrix <- TermDocumentMatrix(cleanCorpus, control = list(tokenize = uniTokenizer))
+biMatrix <- TermDocumentMatrix(cleanCorpus, control = list(tokenize = biTokenizer))
+triMatrix <- TermDocumentMatrix(cleanCorpus, control = list(tokenize = triTokenizer))
+```
+
+### Calculate the Frequencies of the N-Grams
+
+Frequency of N-grams.
+
+```{r}
+uniCorpus <- findFreqTerms(uniMatrix, lowfreq = 20)
+biCorpus <- findFreqTerms(biMatrix, lowfreq = 20)
+triCorpus <- findFreqTerms(triMatrix, lowfreq = 20)
+
+#unicorpus
+uniCorpusFreq <- rowSums(as.matrix(uniMatrix[uniCorpus,]))
+uniCorpusFreq <- data.frame(word = names(uniCorpusFreq), frequency = uniCorpusFreq)
+uniCorpusFreq <- arrange(uniCorpusFreq, desc(frequency))
+head(uniCorpusFreq)
+
+#bicorpus
+biCorpusFreq <- rowSums(as.matrix(biMatrix[biCorpus,]))
+biCorpusFreq <- data.frame(word = names(biCorpusFreq), frequency = biCorpusFreq)
+biCorpusFreq <- arrange(biCorpusFreq, desc(frequency))
+head(biCorpusFreq)
+
+#tricorpus
+triCorpusFreq <- rowSums(as.matrix(triMatrix[triCorpus,]))
+triCorpusFreq <- data.frame(word = names(triCorpusFreq), frequency = triCorpusFreq)
+triCorpusFreq <- arrange(triCorpusFreq, desc(frequency))
+head(triCorpusFreq)
+```
+
+## Data Visualization
+
+
+```{r}
+uniBar <- ggplot(data = uniCorpusFreq[1:20,], aes(x = reorder(word, -frequency), y = frequency)) +
+        geom_bar(stat = "identity", fill = "tomato2") +
+        xlab("Words") +
+        ylab("Frequency") +
+        ggtitle(paste("Top 20 Unigrams")) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        theme(axis.text.x = element_text(angle = 50, hjust = 1))
+biBar <- ggplot(data = biCorpusFreq[1:20,], aes(x = reorder(word, -frequency), y = frequency)) +
+        geom_bar(stat = "identity", fill = "darkgreen") +
+        xlab("Words") +
+        ylab("Frequency") +
+        ggtitle(paste("Top 20 Bigrams")) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        theme(axis.text.x = element_text(angle = 50, hjust = 1))
+triBar <- ggplot(data = triCorpusFreq[1:20,], aes(x = reorder(word, -frequency), y = frequency)) +
+        geom_bar(stat = "identity", fill = "deepskyblue") +
+        xlab("Words") +
+        ylab("Frequency") +
+        ggtitle(paste("Top 20 Trigrams")) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        theme(axis.text.x = element_text(angle = 50, hjust = 1))
+
+uniBar
+biBar
+triBar
+
+```
+
+### Words Distribution
+
+```{r}
+uniCorpusFreq$cum <- cumsum(uniCorpusFreq$frequency/length(uniMatrix$i))
+
+# Number of unique words
+uniMatrix$nrow
+
+# Number of words are needed to cover 50% of the corpora
+which(uniCorpusFreq$cum >= 0.5)[1]
+
+# Number of words are needed to cover 90% of the corpora
+which(uniCorpusFreq$cum >= 0.9)[1]
+```
+
+We need 160 words out of 45815 unique words to cover 50% of the total of word instances in the corpora subset while we need 2924 out of 45815 to cover 90% of the total word instances in the corpora subset.
+
+## Summary
+
+One question I have is whether a 1% sample of the data is enough? I may find I need to increase the sample size, but doing so could affect the performance of the application.
+
+The VCorpus object is also quite large (137.3 Mb), even with a sample size of only 1%. This may create issues due to memory constraints when it comes time to build the predictive model.
+
+We may need to try different sample sizes to get a balance between enough data, memory consumption and acceptable performance.
+
+We also need to determine whether stopwords need to be removed and create a filter if profane words are suggested when a word or phrase is entered by the user.
+
+### Next Steps
+
+1. Build and test different prediction models and evaluate each based on their performance.
+
+2. Make and test any necessary modifications to resolve any issues encountered during modeling.
+
+3. Build, test and deploy a Shiny app with a simple user interface that has acceptable run time and reliably and accurately predicts the next word based on a word or phrase entered by the user.
+
+4. Decide whether to remove the stopwords and filter out profanity, if necessary.
