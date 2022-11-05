@@ -1,0 +1,98 @@
+---
+title: "Basic Inferential data Analysis"
+author: "Marco Venturi"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Analysis of ToothGrowth r/dataset : Introduction
+
+This dataset contains results of experiment from 60 guinea pigs. Each pigs recived different ammount of vitamin C, in two differents methods for deliver it.  
+let's see how the summaries are.
+
+```{r}
+library(ggplot2)
+library(datasets)
+data(ToothGrowth)
+TG <- ToothGrowth
+
+summary(TG)
+```
+we got three different kind of doses:  
+- 0.5  
+- 1.0  
+- 2.0    
+and two different type of delivery:  
+- OJ -> orange juice  
+- VC -> ascorbic acid  
+
+```{r}
+
+g <- ggplot(TG, aes(x = as.factor(dose), y = len, fill= as.factor(dose))) + geom_boxplot() 
+
+g + labs(title = "Tooth growth as effect on dose and delivery method") + facet_grid(cols = vars(supp) )
+
+```
+  
+we can observ that lenght seems to change over different delivery and different doses, let's test this assumption.  
+  
+  
+## Hypotesis test  
+
+Let's set the null hypotesis, it'll be, that there is no difference on the delivery method in terms of the impact in taooth growth.  
+  
+The first Hypotesis it will be that tooth length in guinea pigs that recived orange juice is grater than the ones that recived by ascorbic acid.  
+
+```{r}
+
+ t.test(TG$len~TG$supp,paired=FALSE,var.equal=FALSE,alternative="greater")
+
+```
+  
+Because of small p-value(under 0.05), we can reject H0 and accept H1.
+  
+Let's see where the orange juyce delivery method is better respect to each dose per day.  
+  
+We will mantain H0 and H1
+  
+### 0.5 mg/day
+  
+```{r}
+
+ t.test(TG$len[TG$dose == 0.5]~TG$supp[TG$dose == 0.5],paired=FALSE,var.equal=FALSE, alternative="greater")
+```
+  
+### 1.0 mg/day
+  
+```{r}
+
+t.test(TG$len[TG$dose == 1.0]~TG$supp[TG$dose == 1.0],paired=FALSE,var.equal=FALSE, alternative="greater")
+```
+  
+### 2.0 mg/day
+  
+```{r}
+
+t.test(TG$len[TG$dose == 2.0]~TG$supp[TG$dose == 2.0],paired=FALSE,var.equal=FALSE, alternative="greater")
+```
+
+From the tests, we observe that for the 0.5 and 1.0 mg/day doses, orange juice provides a better delivery
+method, as we got small p-values and confidence intervals that don’t contain 0. However, for the 2.0 mg/day dose, we fail to reject Ho and conclude that for this level of dose, delivery method plays no difference in tooth growth. This analysis confirms what can be visually inferred from the boxplot above.
+  
+## Conclusion  
+  
+After analyzing the ToothGrowth dataset, we conclude that:  
+- Higher doses of vitamin C result in larger tooth growth in guinea pigs that agreed to participate in theexperiment.  
+- Guinea pigs consuming orange juice on a daily basis, grow larger teeth than those consuming ascorbicacid. They also agree that orange juice is more delicious and refreshing.  
+- In average, when the dose gets to 2.0 mg/day, delivery method makes not a big difference in tooth
+growth, even though larger growth was achieved by some of the guinea pigs consuming ascorbic acid.  
+  
+A general conclusion can be stated as low doses of vitamin C are better absorbed by the guinea pigs when
+administered via orange juice than ascorbic acid.
+  
