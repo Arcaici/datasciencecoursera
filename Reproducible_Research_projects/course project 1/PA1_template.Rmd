@@ -1,0 +1,201 @@
+---
+title: "Course Project 1"
+author: "Marco Venturi"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Course Project week 1##  
+
+###Looking in to data###  
+
+This data set contain  information about about personal movement using activity monitoring devices such as a Fitbit,   Nike Fuelband, or Jawbone Up.    
+
+**loading data**  
+
+```{r}
+library(ggplot2)
+
+data <- read.csv("./data/activity.csv")
+
+summary(data)
+
+```
+
+*Steps* has alot of NA values, about 2304, while *date* is not in date format.  Let's change *date* format and leave   NA values for now   
+
+**data processing**  
+```{r}
+data$date <- as.Date(data$date, "%Y-%m-%d")
+
+head(data,5)
+```
+
+
+###What is mean total number of steps taken per day###  
+
+First it need to be calculate  the total number of steps per day(*step_day*).  
+
+
+**steps per day**  
+```{r}
+step_day <- aggregate(steps ~ weekdays(date) , data, sum)
+
+head(step_day, 5)
+
+```
+
+
+
+let's plot the histogram about *step_day*  
+
+**histogram**  
+```{r histogram, fig.height = 4, fig.width=7}
+ggplot(step_day, aes(x =`weekdays(date)`, y = steps)) +
+  geom_bar(stat = "identity",aes( fill = factor(`weekdays(date)`))) +
+  ggtitle("Avg Steps Per Time Interval") +
+  labs(x="Time interval", y="Avg Steps Per Day") +
+  guides(fill = "none")
+```
+how much are *mean* and *median* of the total number of *steps* taken per day?  
+
+**mean and median**  
+
+```{r}
+print(mean(step_day$steps))   #mean
+print(median(step_day$step))  #median
+```
+
+###What is the average daily activity pattern?###  
+
+**average number of steps taken all days across interval**
+```{r}
+step_5_min <- data
+step_5_min$date <- weekdays(data$date)
+head(step_5_min)
+step_5_min <- aggregate(steps ~ date + interval , step_5_min, mean)
+head(step_5_min)
+
+```
+
+
+**Line graph: average number of steps taken all days**
+```{r linegraph, fig.height=4, fig.width=8}
+ggplot(step_5_min, aes(x=interval, y = steps, color= date)) +
+  geom_line() + 
+  ggtitle("Avg Steps Per Time Interval") + 
+  labs(x="Time interval one mesaurament each 5 minuts", y="average steps")
+```
+
+**5-minute interval on average across all the days that contains the maximum number of steps?**  
+```{r}
+max(step_5_min$step)
+```
+
+###Imputing missing values###  
+
+**Number of missing values**
+```{r}
+na <- is.na(data)
+nrow(data[na,])
+
+```
+
+**function for fill missing value in steps**
+
+```{r}
+fillStepBydayMean <- function(row, step_day) {
+  
+  row[,1] <-  step_day[step_day$day == row[,2], 1 ]
+  
+  return(row)
+  
+}
+
+```
+
+**filling missing data**
+```{r,results='hide'}
+
+colnames(step_day) <- c("day", "steps")
+
+step_day$day <- factor(step_day$day)
+
+fill_data <- data
+fill_data$date <- factor(weekdays(as.Date(fill_data$date, "%Y-%m-%d")))
+
+na_steps <- which(is.na(fill_data$steps))
+
+i<-1L
+
+
+for(index in na_steps) {
+  fill_data[index, ] <- fillStepBydayMean(fill_data[index,], step_day )
+}
+
+```
+
+```{r}
+summary(fill_data)
+head(fill_data)
+```
+
+```{r histogram_2 , fig.height = 4, fig.width=7}
+step_day_filled_na <- aggregate(steps ~ date , fill_data, sum)
+
+
+ggplot(step_day_filled_na, aes(x =date, y = steps)) +
+  geom_bar(stat = "identity",aes( fill = date)) +
+  ggtitle("Avg Steps Per Time Interval") +
+  labs(x="Time interval", y="Avg Steps Per Day") +
+  guides(fill = "none")
+
+```
+
+**mean and median fill_data**
+```{r}
+print(mean(step_day_filled_na$steps))   #mean
+print(median(step_day_filled_na$step))  #median
+
+```
+
+
+###Are there differences in activity patterns between weekdays and weekends? ###
+
+
+**Create a new factor variable in the data set with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.**
+
+
+```{r}
+fill_data$date <- weekdays(as.Date(data$date, "%Y-%m-%d"))
+fill_data$weektype <- sapply(fill_data$date, function(x){
+  if(x == "domenica" | x=="sabato" | x == "sunday"| x == "saturday"){
+    result <- "weekend"
+  }else{
+    result <- "weekday"
+  }
+  
+  return(result)
+})
+
+head(fill_data,5)
+```
+
+
+```{r}
+
+step_5_min_filled <- fill_data
+step_5_min_filled <- aggregate(steps ~ date + interval + weektype , step_5_min_filled, mean)
+head(step_5_min_filled)
+
+ggplot(step_5_min_filled, aes(x=interval, y = steps, color= date)) +
+  geom_line() +
+  facet_grid(.~ weektype) +
+  ggtitle("Avg Steps Per Time Interval") + 
+  labs(x="Time interval one mesaurament each 5 minuts", y="average steps")
+
+```
